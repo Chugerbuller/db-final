@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -20,6 +21,12 @@ type Parcel struct {
 	Status    string
 	Address   string
 	CreatedAt string
+}
+
+func (p *Parcel) String() string {
+	return fmt.Sprintf(
+		"Number: %d, Client: %d, Status: %s, Address: %s, CreatedAt: %s",
+		p.Number, p.Client, p.Status, p.Address, p.CreatedAt)
 }
 
 type ParcelService struct {
@@ -97,9 +104,12 @@ func (s ParcelService) Delete(number int) error {
 }
 
 func main() {
-	// настройте подключение к БД
+	db, err := sql.Open("sqlite", "./tracker.db")
+	if err != nil {
+		log.Fatalf("ERROR: open db: %v", err)
+	}
 
-	store := // создайте объект ParcelStore функцией NewParcelStore
+	store := NewParcelStore(db)
 	service := NewParcelService(store)
 
 	// регистрация посылки
