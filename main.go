@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"time"
-
 	_ "modernc.org/sqlite"
 )
 
@@ -108,6 +107,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("ERROR: open db: %v", err)
 	}
+	defer db.Close()
 
 	store := NewParcelStore(db)
 	service := NewParcelService(store)

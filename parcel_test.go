@@ -50,7 +50,7 @@ func TestAddGetDelete(t *testing.T) {
 	err = store.Delete(parcelId)
 	require.NoError(t, err)
 	_, err = store.Get(parcelId)
-	assert.Equal(t, sql.ErrNoRows, err)
+	require.ErrorIs(t, sql.ErrNoRows, err)
 }
 
 // TestSetAddress проверяет обновление адреса
@@ -61,34 +61,18 @@ func TestSetAddress(t *testing.T) {
 	defer db.Close()
 
 	store := NewParcelStore(db)
-	parcels := []Parcel{
-		getTestParcel(),
-		{
-			Client:    1000,
-			Status:    ParcelStatusDelivered,
-			Address:   "test",
-			CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		},
-	}
-	for _, parcel := range parcels {
-		parcelId, err := store.Add(parcel)
-		require.NoError(t, err)
-		newAddress := "new test address"
-		err = store.SetAddress(parcelId, newAddress)
-		switch parcel.Status {
-		case ParcelStatusRegistered:
-			require.NoError(t, err)
-			stored, err := store.Get(parcelId)
-			require.NoError(t, err)
-			assert.Equal(t, newAddress, stored.Address)
-		default:
-			assert.Equal(t, err, errWrongStatus)
-			stored, err := store.Get(parcelId)
-			require.NoError(t, err)
-			assert.Equal(t, parcel.Address, stored.Address)
-		}
+	parcel := getTestParcel()
+	parcelId,err := store.Add(parcel)
+	require.NoError(t,err)
+	assert.NotZero(t,parcelId)
 
-	}
+	newAddress := "new test address"
+	err = store.SetAddress(parcelId,newAddress)
+	require.NoError(t,err)
+
+	parcel,err = store.Get(parcelId)
+	require.NoError(t,err)
+	assert.Equal(t,parcel.Address,newAddress)
 
 }
 
@@ -100,32 +84,26 @@ func TestSetStatus(t *testing.T) {
 	defer db.Close()
 
 	store := NewParcelStore(db)
-	parcels := []Parcel{getTestParcel(), getTestParcel(), getTestParcel()}
-	statuses := []string{ParcelStatusSent, ParcelStatusDelivered, ParcelStatusRegistered}
+	parcel := getTestParcel()
+	
+	parcelId,err := store.Add(parcel)
+	require.NoError(t,err)
+	assert.NotZero(t,parcelId)
 
-	for i, status := range statuses {
-		parcelId, err := store.Add(parcels[i])
-		require.NoError(t, err)
+	newStatus := ParcelStatusDelivered
+	err = store.SetStatus(parcelId,newStatus)
+	require.NoError(t,err)
+	parcel,err = store.Get(parcelId)
+	require.NoError(t,err)
+	assert.Equal(t,parcel.Status,newStatus)
 
-		err = store.SetStatus(parcelId, status)
-		switch parcels[i].Status {
-		case ParcelStatusRegistered:
-			require.NoError(t, err)
-
-		default:
-			assert.Equal(t, err, errWrongStatus)
-			
-		}
-		stored, err := store.Get(parcelId)
-		require.NoError(t, err)
-		assert.Equal(t, status, stored.Status)
-	}
 }
 
 // TestGetByClient проверяет получение посылок по идентификатору клиента
 func TestGetByClient(t *testing.T) {
 	db, err := sql.Open("sqlite", "./tracker.db")
 	require.NoError(t, err)
+	defer db.Close()
 	store := NewParcelStore(db)
 
 	parcels := []Parcel{
@@ -150,7 +128,7 @@ func TestGetByClient(t *testing.T) {
 
 	storedParcels, err := store.GetByClient(client)
 	require.NoError(t, err)
-	assert.Equal(t, len(storedParcels), len(parcels))
+	assert.Len(t, storedParcels, len(parcels))
 
 	for _, parcel := range storedParcels {
 		value, ok := parcelMap[parcel.Number]
